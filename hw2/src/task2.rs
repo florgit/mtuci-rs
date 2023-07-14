@@ -25,7 +25,7 @@
      }
  
      fn bottom_right(&self) -> (f32, f32) {
-        (self.top_left.0 - self.width, self.top_left.1 + self.width)
+        (self.top_left.0 + self.width, self.top_left.1 - self.width)
      }
  
      fn area(&self) -> f32 {
