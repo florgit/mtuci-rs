@@ -1,5 +1,5 @@
 use teloxide::{prelude::*, utils::command::BotCommands, types::ParseMode};
-//use reqwest::Error;
+use std::env;
 
 #[tokio::main]
 async fn main() {
@@ -39,10 +39,10 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             if command_body.len() != 3 {
                 bot.send_message(msg.chat.id, "Неверное количество параметров команды!").await?
             } else {
+                let api_key = env::var("EXCHANGE_RATES_API_KEY").expect("EXCHANGE_RATES_API_KEY not set");
                 let from_currency = command_body[1].to_uppercase();
                 let to_currency = command_body[2].to_uppercase();
                 let amount_str = command_body[0].replace(",", ".");
-            
 
                 let amount = match amount_str.parse::<f64>() {
                     Ok(parsed_amount) => parsed_amount,
@@ -55,8 +55,8 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                     }
                 };
                 let url = format!(
-                    "https://v6.exchangerate-api.com/v6/f2c8276c7ac72496f648dd3e/latest/{}",
-                    from_currency
+                    "https://v6.exchangerate-api.com/v6/{}/latest/{}",
+                    api_key, from_currency
                 );
                 let response = reqwest::get(&url).await?.json::<serde_json::Value>().await?;
                 let conversion_rates = response["conversion_rates"].as_object();
