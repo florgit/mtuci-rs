@@ -18,8 +18,8 @@ enum Command {
     Start,
     #[command(description = "Помощь.")]
     Help,
-    #[command(description = "конвертация валюты.", parse_with="split")]
-    Convert { amount_str: String, from_currency: String, to_currency: String },
+    #[command(description = "конвертация валюты.")]
+    Convert { command_body: String },
 }
 
 async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
@@ -34,55 +34,62 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
     match cmd {
         Command::Start => bot.send_message(msg.chat.id, "Это бот для конвертации валют!\n\nДля получения большей информации - /help").await?,
         Command::Help => bot.send_message(msg.chat.id, help).parse_mode(ParseMode::Html).await?,
-        Command::Convert { amount_str, from_currency, to_currency } => {
-            let from_currency = from_currency.to_uppercase();
-            let to_currency = to_currency.to_uppercase();
-            let amount_str = amount_str.replace(",", ".");
-            let amount = match amount_str.parse::<f64>() {
-                Ok(parsed_amount) => parsed_amount,
-                Err(_) => {
-                    bot.send_message(
-                        msg.chat.id,
-                        "Ошибка ввода суммы"
-                    ).await?;
-                    return Ok(());
-                }
-            };
-            let url = format!(
-                "https://v6.exchangerate-api.com/v6/f2c8276c7ac72496f648dd3e/latest/{}",
-                from_currency
-            );
-            let response = reqwest::get(&url).await?.json::<serde_json::Value>().await?;
-            let conversion_rates = response["conversion_rates"].as_object();
-
-            //Проверка корректности валюты
-            if let Some(rates) = conversion_rates {
-                if !rates.contains_key(&to_currency) {
-                    bot.send_message(
-                        msg.chat.id,
-                        format!("Некорректная валюта: {}", to_currency)
-                    ).await?;
-                    return Ok(());
-                }
+        Command::Convert { command_body } => {
+            let command_body: Vec<&str> = command_body.split(' ').collect();
+            if command_body.len() != 3 {
+                bot.send_message(msg.chat.id, "Неверное количество параметров команды!").await?
             } else {
+                let from_currency = command_body[1].to_uppercase();
+                let to_currency = command_body[2].to_uppercase();
+                let amount_str = command_body[0].replace(",", ".");
+            
+
+                let amount = match amount_str.parse::<f64>() {
+                    Ok(parsed_amount) => parsed_amount,
+                    Err(_) => {
+                        bot.send_message(
+                            msg.chat.id,
+                            "Ошибка ввода суммы"
+                        ).await?;
+                        return Ok(());
+                    }
+                };
+                let url = format!(
+                    "https://v6.exchangerate-api.com/v6/f2c8276c7ac72496f648dd3e/latest/{}",
+                    from_currency
+                );
+                let response = reqwest::get(&url).await?.json::<serde_json::Value>().await?;
+                let conversion_rates = response["conversion_rates"].as_object();
+
+                //Проверка корректности валюты
+                if let Some(rates) = conversion_rates {
+                    if !rates.contains_key(&to_currency) {
+                        bot.send_message(
+                            msg.chat.id,
+                            format!("Некорректная валюта: {}", to_currency)
+                        ).await?;
+                        return Ok(());
+                    }
+                } else {
+                    bot.send_message(
+                        msg.chat.id,
+                        format!("Некорректная валюта: {}", from_currency)
+                    ).await?;
+                    return Ok(());
+                }
+
+                let rate = response["conversion_rates"][&to_currency].as_f64().unwrap();
+
                 bot.send_message(
                     msg.chat.id,
-                    format!("Некорректная валюта: {}", from_currency)
-                ).await?;
-                return Ok(());
+                    format!(
+                        "1 {} равняется {:.2} {}\n{} {} равняется {:.2} {}",
+                        from_currency, rate, to_currency,
+                        amount, from_currency, amount * rate, to_currency
+                    ),
+                )
+                .await?
             }
-
-            let rate = response["conversion_rates"][&to_currency].as_f64().unwrap();
-
-            bot.send_message(
-                msg.chat.id,
-                format!(
-                    "1 {} равняется {:.2} {}\n{} {} равняется {:.2} {}",
-                    from_currency, rate, to_currency,
-                    amount, from_currency, amount * rate, to_currency
-                ),
-            )
-            .await?
         }
     };
 
