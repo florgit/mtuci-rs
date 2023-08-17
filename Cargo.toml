@@ -11,6 +11,7 @@ members = [
     "ch9",
     "homework_1",
     "hw2",
+    "hw4",
     "tokio",
     "my_project",
 ]
