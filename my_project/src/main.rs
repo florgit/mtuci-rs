@@ -24,16 +24,18 @@ enum Command {
 
 async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
 
-    let help = "Помощь по использованию бота:\n
+    match cmd {
+        Command::Start => bot.send_message(msg.chat.id, "Это бот для конвертации валют!\n\nДля получения большей информации - /help").await?,
+        Command::Help => {
+            let help = "Помощь по использованию бота:\n
 /help - вывод этого сообщения.\n
 <b><u>Запрос:</u></b>
 /convert СУММА ИЗ_ВАЛЮТЫ В_ВАЛЮТУ
 <b><u>Пример:</u></b>
 /convert 128 RUB USD";
-
-    match cmd {
-        Command::Start => bot.send_message(msg.chat.id, "Это бот для конвертации валют!\n\nДля получения большей информации - /help").await?,
-        Command::Help => bot.send_message(msg.chat.id, help).parse_mode(ParseMode::Html).await?,
+            
+            bot.send_message(msg.chat.id, help).parse_mode(ParseMode::Html).await?
+        },
         Command::Convert { command_body } => {
             let command_body: Vec<&str> = command_body.split(' ').collect();
             if command_body.len() != 3 {
